@@ -52,6 +52,7 @@ Default connection uses `NoTls` - modify `src/db.rs:33` if TLS is required.
 - `src/main.rs` - CLI entry point using `clap` with subcommands
 - `src/models/` - Data models organized by domain (lexeme, wordform, sense, etymology, etc.)
 - `src/db.rs` - PostgreSQL connection, queries, and caching layer
+- `src/mods.rs` - LLM integration via `mods` CLI with prompt templates
 - `src/search.rs` - Fuzzy search and result formatting
 - `src/repl.rs` - Interactive shell (REPL) with rustyline
 - `src/cache.rs` - LRU query caching
@@ -76,6 +77,62 @@ Default connection uses `NoTls` - modify `src/db.rs:33` if TLS is required.
 - `search <query>` - Fuzzy search with `--limit` and `--threshold` options
 - `stats` - Show database statistics
 - `shell` - Start interactive REPL
+- `mods <uuid>` - Query LLM with lexeme context (uses prompt templates)
+- `mods-raw <text>` - Send raw text to LLM
+- `mods-templates` - List available prompt templates
+
+## Mods Integration (LLM)
+
+**TODO: Configure LLM backend**
+
+The app integrates with the `mods` CLI tool for LLM queries:
+- Current setup: `mods` connected to OpenRouter
+- To configure: Run `mods --help` to set API keys
+- To install: `brew install mods` or from https://github.com/charmbracelet/mods
+
+**Built-in Prompt Templates:**
+- `analyze` - Full linguistic analysis (etymology, usage, notes)
+- `examples` - Generate Yiddish usage examples with translations
+- `synonyms` - Find synonyms and related words
+- `etymology` - Detailed etymological analysis with cognates
+- `custom` - Use your own prompt with `--prompt` flag
+
+**Usage Examples:**
+```bash
+# Analyze a lexeme with LLM
+cargo run -- mods <uuid> --template analyze
+
+# Get usage examples
+cargo run -- mods <uuid> --template examples
+
+# Custom prompt with full context
+cargo run -- mods <uuid> --template custom --prompt "Explain the grammar of {{HEBREW}}"
+
+# Raw LLM query
+cargo run -- mods-raw "What is Yiddish?"
+
+# List templates
+cargo run -- mods-templates
+```
+
+**Context Gathering:**
+The mods integration automatically includes:
+- Lexeme data (Hebrew, romanization, IPA, POS, origin, definition)
+- All linked wordforms (spellings, dialect variants)
+- All senses (meanings)
+
+**Template Variables:**
+- `{{HEBREW}}` - Canonical Hebrew text
+- `{{ROMAN}}` - Romanization
+- `{{IPA}}` - IPA transcription
+- `{{POS}}` - Part of speech
+- `{{ORIGIN}}` - Etymological origin
+- `{{DEFINITION}}` - English definition
+- `{{WORDFORMS}}` - All wordforms
+- `{{SENSES}}` - All senses
+- `{{CUSTOM}}` - For custom templates
+
+**File:** `src/mods.rs` - Prompts are currently hardcoded; future plan is config file for runtime tweaking.
 
 ## Project Philosophy
 
@@ -118,7 +175,3 @@ Optimized release profile configured in `Cargo.toml`:
 - LTO enabled, single codegen unit
 - Binary stripped, panic=abort
 - Maximum optimization level
-
-## Known Issues
-
-Cargo.toml has syntax errors on line 43 that need fixing before `cargo check` will pass.
