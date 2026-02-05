@@ -8,6 +8,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 **Project Location:** `/Users/601ere/jud/`
 **Binary Name:** `judiw`
+**GitHub:** https://github.com/xxsocialxx/jud
 
 ## Development Commands
 
@@ -18,6 +19,9 @@ cargo build
 # Run the application
 cargo run -- lookup <query>     # Search lexemes
 cargo run -- view <uuid>        # View lexeme details
+cargo run -- search <query>     # Fuzzy search with options
+cargo run -- stats              # Database statistics
+cargo run -- shell              # Interactive REPL mode
 
 # Check compilation (faster than build)
 cargo check
@@ -27,6 +31,9 @@ cargo clippy
 
 # Format code
 cargo fmt
+
+# Run tests
+cargo test
 ```
 
 ## Database Connection
@@ -34,21 +41,28 @@ cargo fmt
 The app connects to PostgreSQL using environment variables. Create a `.env` file:
 
 ```bash
-DATABASE_URL=postgresql://postgres@localhost:5432/iddish
+DATABASE_URL=postgresql://601ere@localhost:5432/iddish
 ```
 
-Or set individual variables:
-- `PGDATABASE=iddish`
-- `PGUSER=postgres`
-- `PGPASSWORD=your_password`
-- `PGHOST=localhost`
-- `PGPORT=5432`
+Default connection uses `NoTls` - modify `src/db.rs:33` if TLS is required.
 
 ## Architecture
 
-**Core Components:**
+**Module Structure:**
 - `src/main.rs` - CLI entry point using `clap` with subcommands
-- `src/models.rs` - Data models (Lexeme, Wordform, Sense) and Database operations
+- `src/models/` - Data models organized by domain (lexeme, wordform, sense, etymology, etc.)
+- `src/db.rs` - PostgreSQL connection, queries, and caching layer
+- `src/search.rs` - Fuzzy search and result formatting
+- `src/repl.rs` - Interactive shell (REPL) with rustyline
+- `src/cache.rs` - LRU query caching
+- `src/normalization.rs` - Unicode text normalization
+- `src/morphology.rs` - Morphological analysis
+- `src/display.rs` - Terminal output formatting
+- `src/import.rs` - Data import utilities
+- `src/semantics.rs` - Semantic relationships
+- `src/error.rs` - Error types with miette
+- `src/observability.rs` - Logging with tracing
+- `src/validation.rs` - Input validation
 
 **Key Tables:**
 - `linguayi_lexeme` - Main dictionary entries (Hebrew, romanization, IPA)
@@ -59,34 +73,52 @@ Or set individual variables:
 **CLI Commands:**
 - `lookup <query>` - Search by Hebrew or Latin text
 - `view <uuid>` - View detailed lexeme information
+- `search <query>` - Fuzzy search with `--limit` and `--threshold` options
+- `stats` - Show database statistics
+- `shell` - Start interactive REPL
 
 ## Project Philosophy
 
 From `PROMPT.md` - This is a personal tool built with:
 - **Sound architecture** - Modular, testable, idiomatic Rust
 - **Start small, build slow** - Get core operations right first
-- **CLI first** - No TUI yet (planned for later)
+- **CLI first, REPL added** - Interactive mode via rustyline
 - **Single binary distribution** - Compiled once, works forever
+- **Caching** - LRU cache for query results (1000 entry capacity)
 
 ## Dependencies
 
 - `tokio-postgres` - PostgreSQL client with async support
-- `tokio` - Async runtime
+- `tokio` - Async runtime (full features)
 - `clap` - CLI argument parsing (derive feature)
 - `serde`/`serde_json` - Serialization
 - `anyhow` - Error handling
+- `thiserror` - Error derive macros
+- `miette` - Fancy error reports
 - `uuid` - UUID generation (v1 feature for postgres compatibility)
 - `chrono` - Date/time handling
-- `dotenv` - Environment variable loading
+- `rustyline` - REPL readline support
+- `lru` - LRU cache implementation
+- `tracing`/`tracing-subscriber` - Structured logging
+- `unicode-normalization` - Text normalization
 
 ## Code Conventions
 
-- Use `anyhow::Result` for error handling
+- Use `anyhow::Result` for application errors, `thiserror` for library errors
 - All database operations are async
-- Mirror Django model structure in Rust structs
+- Models organized in `src/models/` module with re-exports in `mod.rs`
 - Use `?` operator for error propagation
 - Environment-based configuration (no hardcoded credentials)
+- Use `tracing::info!`, `tracing::error!` for logging
+- Connection spawns background task for PostgreSQL connection manager
+
+## Release Build
+
+Optimized release profile configured in `Cargo.toml`:
+- LTO enabled, single codegen unit
+- Binary stripped, panic=abort
+- Maximum optimization level
 
 ## Known Issues
 
-The project is in early development. Check compilation status with `cargo check` before starting work.
+Cargo.toml has syntax errors on line 43 that need fixing before `cargo check` will pass.
