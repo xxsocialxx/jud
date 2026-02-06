@@ -1,18 +1,17 @@
-mod models;
-mod db;
-mod normalization;
-mod search;
-mod repl;
-mod display;
 mod cache;
-mod morphology;
+mod db;
+mod display;
+mod models;
 mod mods;
+mod morphology;
+mod normalization;
+mod repl;
+mod search;
 
-use clap::{Parser, Subcommand};
 use anyhow::Result;
+use clap::{Parser, Subcommand};
 
-use models::{Lexeme, Wordform, Sense};
-use search::{SearchResult, SearchOptions, search_lexemes};
+use search::{search_lexemes, SearchOptions};
 
 #[derive(Parser)]
 #[command(name = "judiw")]
@@ -77,7 +76,7 @@ enum Commands {
 #[tokio::main]
 async fn main() -> Result<()> {
     let cli = Cli::parse();
-    
+
     // Connect to database
     println!("🔗 Connecting to Judiw database...");
     let db = db::Database::connect().await?;
@@ -95,7 +94,8 @@ async fn main() -> Result<()> {
                         println!("✅ Found {} lexeme(s):\n", lexemes.len());
 
                         for (i, lexeme) in lexemes.iter().enumerate() {
-                            println!("{}. {} → {}",
+                            println!(
+                                "{}. {} → {}",
                                 i + 1,
                                 lexeme.canonical_hebrew,
                                 lexeme.canonical_roman
@@ -116,23 +116,25 @@ async fn main() -> Result<()> {
             println!("📖 Viewing lexeme: {}\n", id);
 
             match uuid::Uuid::parse_str(&id) {
-                Ok(lexeme_id) => {
-            match db.get_lexeme_details(lexeme_id).await {
-                Ok((lexeme, wordforms, senses)) => {
-                    display::display_lexeme_full(&lexeme, &wordforms, &senses);
-                }
-                        Err(e) => {
-                            println!("❌ Error: {}\n", e);
-                        }
+                Ok(lexeme_id) => match db.get_lexeme_details(lexeme_id).await {
+                    Ok((lexeme, wordforms, senses)) => {
+                        display::display_lexeme_full(&lexeme, &wordforms, &senses);
                     }
-                }
+                    Err(e) => {
+                        println!("❌ Error: {}\n", e);
+                    }
+                },
                 Err(e) => {
                     println!("❌ Invalid UUID: {}\n", e);
                 }
             }
         }
 
-        Commands::Search { query, limit, threshold } => {
+        Commands::Search {
+            query,
+            limit,
+            threshold,
+        } => {
             println!("🔎 Fuzzy search: {}\n", query);
 
             let options = SearchOptions {
@@ -167,49 +169,54 @@ async fn main() -> Result<()> {
             return Ok(());
         }
 
-        Commands::Mods { id, template, prompt } => {
-            println!("🤖 Querying LLM for lexeme: {} (template: {})\n", id, template);
+        Commands::Mods {
+            id,
+            template,
+            prompt,
+        } => {
+            println!(
+                "🤖 Querying LLM for lexeme: {} (template: {})\n",
+                id, template
+            );
 
             match uuid::Uuid::parse_str(&id) {
-                Ok(lexeme_id) => {
-                    match db.get_lexeme_details(lexeme_id).await {
-                        Ok((lexeme, wordforms, senses)) => {
-                            let context = mods::LexemeContext {
-                                lexeme,
-                                wordforms,
-                                senses,
-                            };
+                Ok(lexeme_id) => match db.get_lexeme_details(lexeme_id).await {
+                    Ok((lexeme, wordforms, senses)) => {
+                        let context = mods::LexemeContext {
+                            lexeme,
+                            wordforms,
+                            senses,
+                        };
 
-                            let client = mods::ModsClient::new();
+                        let client = mods::ModsClient::new();
 
-                            let result = if template == "custom" {
-                                if let Some(custom_prompt) = prompt {
-                                    client.query_lexeme_custom(&context, &custom_prompt)
-                                } else {
-                                    eprintln!("❌ --prompt is required when using 'custom' template\n");
-                                    return Ok(());
-                                }
+                        let result = if template == "custom" {
+                            if let Some(custom_prompt) = prompt {
+                                client.query_lexeme_custom(&context, &custom_prompt)
                             } else {
-                                client.query_lexeme(&context, &template)
-                            };
+                                eprintln!("❌ --prompt is required when using 'custom' template\n");
+                                return Ok(());
+                            }
+                        } else {
+                            client.query_lexeme(&context, &template)
+                        };
 
-                            match result {
-                                Ok(response) => {
-                                    println!("═══════════════════════════════════════");
-                                    println!("LLM RESPONSE");
-                                    println!("═══════════════════════════════════════\n");
-                                    println!("{}\n", response);
-                                }
-                                Err(e) => {
-                                    eprintln!("❌ Error: {}\n", e);
-                                }
+                        match result {
+                            Ok(response) => {
+                                println!("═══════════════════════════════════════");
+                                println!("LLM RESPONSE");
+                                println!("═══════════════════════════════════════\n");
+                                println!("{}\n", response);
+                            }
+                            Err(e) => {
+                                eprintln!("❌ Error: {}\n", e);
                             }
                         }
-                        Err(e) => {
-                            eprintln!("❌ Error fetching lexeme: {}\n", e);
-                        }
                     }
-                }
+                    Err(e) => {
+                        eprintln!("❌ Error fetching lexeme: {}\n", e);
+                    }
+                },
                 Err(e) => {
                     eprintln!("❌ Invalid UUID: {}\n", e);
                 }
