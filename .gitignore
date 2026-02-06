@@ -1,6 +1,8 @@
 # Rust
 /target/
 **/*.rs.bk
+**/*.rs.corrupted
+*.pdb
 Cargo.lock
 
 # Environment
@@ -13,7 +15,12 @@ Cargo.lock
 *.swp
 *.swo
 *~
+*.rs.bk
 
 # OS
 .DS_Store
 Thumbs.db
+
+# Project specific
+*.bak
+Cargo.toml.bak

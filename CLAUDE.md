@@ -22,6 +22,7 @@ cargo run -- view <uuid>        # View lexeme details
 cargo run -- search <query>     # Fuzzy search with options
 cargo run -- stats              # Database statistics
 cargo run -- shell              # Interactive REPL mode
+cargo run -- mods <uuid>        # LLM query with lexeme context
 
 # Check compilation (faster than build)
 cargo check
@@ -33,7 +34,40 @@ cargo clippy
 cargo fmt
 
 # Run tests
-cargo test
+cargo test                                    # All tests
+cargo test --test integration_test            # Integration tests only
+cargo test --test property_tests              # Property-based tests
+```
+
+## Project Structure
+
+```
+jud/
+├── src/
+│   ├── main.rs           # CLI entry point
+│   ├── lib.rs            # Library exports for testing
+│   ├── models/           # Data models (domain-organized)
+│   ├── db.rs             # PostgreSQL operations
+│   ├── mods.rs           # LLM integration
+│   ├── cache.rs          # LRU caching
+│   ├── search.rs         # Fuzzy search
+│   ├── normalization.rs  # Hebrew text normalization
+│   ├── morphology.rs     # Morphological analysis
+│   ├── display.rs        # Terminal formatting
+│   ├── repl.rs           # Interactive REPL
+│   ├── import.rs         # Data import utilities
+│   ├── semantics.rs      # Semantic relationships
+│   ├── query.rs          # Query building
+│   ├── validation.rs     # Input validation
+│   ├── error.rs          # Error types (miette)
+│   └── observability.rs  # Logging (tracing)
+├── tests/                # Integration & property tests
+├── benches/              # Benchmark suites
+├── scripts/              # Development scripts
+├── docs/                 # Historical documentation (ADRs, reports)
+├── migrations/           # Database migrations
+├── CLAUDE.md             # This file
+└── PROMPT.md             # Project philosophy & context
 ```
 
 ## Database Connection
@@ -48,22 +82,14 @@ Default connection uses `NoTls` - modify `src/db.rs:33` if TLS is required.
 
 ## Architecture
 
-**Module Structure:**
-- `src/main.rs` - CLI entry point using `clap` with subcommands
-- `src/models/` - Data models organized by domain (lexeme, wordform, sense, etymology, etc.)
-- `src/db.rs` - PostgreSQL connection, queries, and caching layer
-- `src/mods.rs` - LLM integration via `mods` CLI with prompt templates
-- `src/search.rs` - Fuzzy search and result formatting
-- `src/repl.rs` - Interactive shell (REPL) with rustyline
-- `src/cache.rs` - LRU query caching
-- `src/normalization.rs` - Unicode text normalization
-- `src/morphology.rs` - Morphological analysis
-- `src/display.rs` - Terminal output formatting
-- `src/import.rs` - Data import utilities
-- `src/semantics.rs` - Semantic relationships
-- `src/error.rs` - Error types with miette
-- `src/observability.rs` - Logging with tracing
-- `src/validation.rs` - Input validation
+**Module Structure:** See Project Structure above for complete file listing.
+
+**Key Design Patterns:**
+- **Library pattern:** `src/lib.rs` exposes modules for integration testing
+- **Type-safe errors:** `thiserror` + `miette` for structured, pretty error printing
+- **Caching layer:** LRU cache (1000 entries) in `src/cache.rs`
+- **Query builder:** Compile-time SQL safety in `src/query.rs`
+- **Structured logging:** `tracing` crate for observability
 
 **Key Tables:**
 - `linguayi_lexeme` - Main dictionary entries (Hebrew, romanization, IPA)
@@ -80,6 +106,28 @@ Default connection uses `NoTls` - modify `src/db.rs:33` if TLS is required.
 - `mods <uuid>` - Query LLM with lexeme context (uses prompt templates)
 - `mods-raw <text>` - Send raw text to LLM
 - `mods-templates` - List available prompt templates
+
+## Interactive REPL
+
+Start with `cargo run -- shell` or `judiw shell` (if installed).
+
+**REPL Commands:**
+- `search <query>` / `s` - Fuzzy search
+- `lookup <query>` / `l` - Direct lookup
+- `view <uuid>` / `v` - View lexeme details
+- `wordforms` / `wf` - Show wordforms for current lexeme
+- `senses` - Show senses for current lexeme
+- `back` / `b` - Navigate back
+- `stats` - Database statistics
+- `clear` - Clear screen
+- `help` / `?` - Show help
+- `exit` / `q` - Exit
+
+**Features:**
+- Command history saved to `~/.judiw_history`
+- Auto-selection on single results
+- Hierarchical navigation (lexeme → wordforms → senses)
+- Context-sensitive help
 
 ## Mods Integration (LLM)
 
@@ -133,6 +181,36 @@ The mods integration automatically includes:
 - `{{CUSTOM}}` - For custom templates
 
 **File:** `src/mods.rs` - Prompts are currently hardcoded; future plan is config file for runtime tweaking.
+
+## Testing
+
+**Integration Tests** (`tests/integration_test.rs`):
+- Database connection verification
+- Lexeme lookup and retrieval
+- Run with: `cargo test --test integration_test`
+
+**Property-Based Tests** (`tests/property_tests.rs`):
+- Uses `proptest` for invariant verification
+- Morphological property testing
+- Run with: `cargo test --test property_tests`
+
+**All Tests:**
+```bash
+cargo test                                    # Run all tests
+cargo test -- --nocapture                     # Show stdout
+cargo test -- --test-threads=1                # Single-threaded
+```
+
+## Documentation
+
+**Primary Docs:**
+- `CLAUDE.md` - This file (AI agent guidance)
+- `PROMPT.md` - Project philosophy, vision, requirements
+- `docs/ADRs.md` - Architecture Decision Records
+- `docs/INFRASTRUCTURE_COMPLETE.md` - Infrastructure status
+- `docs/LINGUISTICS.md` - Linguistic features documentation
+
+**See `docs/` folder for historical reports and session notes.**
 
 ## Project Philosophy
 
