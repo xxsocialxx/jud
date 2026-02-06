@@ -28,6 +28,10 @@ criterion = "0.5"
 proptest = "1.0"
 quickcheck = "1.0"
 
+[lib]
+name = "judiw_terminal"
+path = "src/lib.rs"
+
 [[bin]]
 name = "judiw"
 path = "src/main.rs"
