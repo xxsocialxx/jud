@@ -13,10 +13,12 @@
 // - Future: Move prompts to config file for runtime tweaking
 // ============================================================================
 
-use anyhow::{Result, anyhow};
-use std::process::Command;
+#![allow(dead_code)]
+
+use crate::models::{Lexeme, Sense, Wordform};
+use anyhow::{anyhow, Result};
 use serde::{Deserialize, Serialize};
-use crate::models::{Lexeme, Wordform, Sense};
+use std::process::Command;
 
 // ============================================================================
 // PROMPT TEMPLATES
@@ -35,10 +37,20 @@ impl PromptTemplate {
         self.template
             .replace("{{HEBREW}}", &context.lexeme.canonical_hebrew)
             .replace("{{ROMAN}}", &context.lexeme.canonical_roman)
-            .replace("{{IPA}}", &context.lexeme.canonical_ipa.as_deref().unwrap_or("N/A"))
+            .replace(
+                "{{IPA}}",
+                context.lexeme.canonical_ipa.as_deref().unwrap_or("N/A"),
+            )
             .replace("{{POS}}", &context.lexeme.part_of_speech)
             .replace("{{ORIGIN}}", &context.lexeme.origin)
-            .replace("{{DEFINITION}}", &context.lexeme.english_definition.as_deref().unwrap_or("N/A"))
+            .replace(
+                "{{DEFINITION}}",
+                context
+                    .lexeme
+                    .english_definition
+                    .as_deref()
+                    .unwrap_or("N/A"),
+            )
             .replace("{{WORDFORMS}}", &format_wordforms(&context.wordforms))
             .replace("{{SENSES}}", &format_senses(&context.senses))
     }
@@ -48,9 +60,14 @@ fn format_wordforms(wordforms: &[Wordform]) -> String {
     if wordforms.is_empty() {
         "None".to_string()
     } else {
-        wordforms.iter()
+        wordforms
+            .iter()
             .map(|wf| {
-                let markers = if wf.is_canonical_lk { " [canonical]" } else { "" };
+                let markers = if wf.is_canonical_lk {
+                    " [canonical]"
+                } else {
+                    ""
+                };
                 format!("- {} ({}){}", wf.text, wf.script, markers)
             })
             .collect::<Vec<_>>()
@@ -62,7 +79,8 @@ fn format_senses(senses: &[Sense]) -> String {
     if senses.is_empty() {
         "None".to_string()
     } else {
-        senses.iter()
+        senses
+            .iter()
             .map(|s| format!("- {}", s.definition))
             .collect::<Vec<_>>()
             .join("\n")
@@ -174,9 +192,7 @@ impl ModsClient {
 
     /// Send a query to mods with the given prompt
     pub fn query(&self, prompt: &str) -> Result<String> {
-        let output = Command::new(&self.mods_path)
-            .arg(prompt)
-            .output();
+        let output = Command::new(&self.mods_path).arg(prompt).output();
 
         match output {
             Ok(output) => {
@@ -188,9 +204,10 @@ impl ModsClient {
                     Err(anyhow!("mods failed: {}", stderr))
                 }
             }
-            Err(e) => {
-                Err(anyhow!("Failed to run mods: {}. Is 'mods' installed and in PATH?", e))
-            }
+            Err(e) => Err(anyhow!(
+                "Failed to run mods: {}. Is 'mods' installed and in PATH?",
+                e
+            )),
         }
     }
 
@@ -207,14 +224,28 @@ impl ModsClient {
     }
 
     /// Send a custom prompt with lexeme context
-    pub fn query_lexeme_custom(&self, context: &LexemeContext, custom_prompt: &str) -> Result<String> {
+    pub fn query_lexeme_custom(
+        &self,
+        context: &LexemeContext,
+        custom_prompt: &str,
+    ) -> Result<String> {
         let prompt = custom_prompt
             .replace("{{HEBREW}}", &context.lexeme.canonical_hebrew)
             .replace("{{ROMAN}}", &context.lexeme.canonical_roman)
-            .replace("{{IPA}}", &context.lexeme.canonical_ipa.as_deref().unwrap_or("N/A"))
+            .replace(
+                "{{IPA}}",
+                context.lexeme.canonical_ipa.as_deref().unwrap_or("N/A"),
+            )
             .replace("{{POS}}", &context.lexeme.part_of_speech)
             .replace("{{ORIGIN}}", &context.lexeme.origin)
-            .replace("{{DEFINITION}}", &context.lexeme.english_definition.as_deref().unwrap_or("N/A"))
+            .replace(
+                "{{DEFINITION}}",
+                context
+                    .lexeme
+                    .english_definition
+                    .as_deref()
+                    .unwrap_or("N/A"),
+            )
             .replace("{{WORDFORMS}}", &format_wordforms(&context.wordforms))
             .replace("{{SENSES}}", &format_senses(&context.senses));
 
