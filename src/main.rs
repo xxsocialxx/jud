@@ -7,6 +7,7 @@ mod morphology;
 mod normalization;
 mod repl;
 mod search;
+mod wordform_view;
 
 use anyhow::Result;
 use clap::{Parser, Subcommand};
@@ -71,6 +72,11 @@ enum Commands {
     },
     /// List available prompt templates
     ModsTemplates,
+    /// Show detailed grammatical wordform view (Weinreich-style)
+    Wordform {
+        /// Lexeme UUID or search query
+        id: String,
+    },
 }
 
 #[tokio::main]
@@ -243,6 +249,57 @@ async fn main() -> Result<()> {
         Commands::ModsTemplates => {
             mods::list_templates();
             println!();
+        }
+
+        Commands::Wordform { id } => {
+            // Try as UUID first, then as search query
+            match uuid::Uuid::parse_str(&id) {
+                Ok(lexeme_id) => match db.get_lexeme_details(lexeme_id).await {
+                    Ok((lexeme, wordforms, senses)) => {
+                        wordform_view::display_wordform_detailed(&lexeme, &wordforms, &senses);
+                    }
+                    Err(e) => {
+                        eprintln!("❌ Error fetching lexeme: {}\n", e);
+                    }
+                },
+                Err(_) => {
+                    // Try as search query
+                    match db.lookup_lexeme(&id).await {
+                        Ok(lexemes) => {
+                            if lexemes.is_empty() {
+                                eprintln!("❌ No lexemes found.\n");
+                            } else if lexemes.len() == 1 {
+                                let lexeme = &lexemes[0];
+                                match db.get_lexeme_details(lexeme.id).await {
+                                    Ok((_, wordforms, senses)) => {
+                                        wordform_view::display_wordform_detailed(
+                                            lexeme, &wordforms, &senses,
+                                        );
+                                    }
+                                    Err(e) => {
+                                        eprintln!("❌ Error: {}\n", e);
+                                    }
+                                }
+                            } else {
+                                println!("📖 Multiple lexemes found:\n");
+                                for (i, lexeme) in lexemes.iter().enumerate() {
+                                    println!(
+                                        "{}. {} ({}) [{}]",
+                                        i + 1,
+                                        lexeme.canonical_hebrew,
+                                        lexeme.canonical_roman,
+                                        lexeme.id
+                                    );
+                                }
+                                println!("\nUse judiw wordform <uuid> for a specific lexeme.");
+                            }
+                        }
+                        Err(e) => {
+                            eprintln!("❌ Error: {}\n", e);
+                        }
+                    }
+                }
+            }
         }
     }
 

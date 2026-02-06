@@ -13,7 +13,15 @@ pub mod shared;
 pub mod wordform;
 
 // Re-export commonly used types
-pub use shared::{Register, UsageCategory};
+pub use shared::{
+    // Morphological features
+    Gender,
+    Register,
+    UsageCategory,
+    // Verb classification
+    VerbClass,
+    VerbPerson,
+};
 
 pub use lexeme::Lexeme;
 pub use sense::Sense;

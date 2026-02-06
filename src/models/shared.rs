@@ -156,6 +156,93 @@ impl Display for SemanticRelationship {
 }
 
 // ============================================================================
+// VERB CLASSIFICATION (Weinreich)
+// ============================================================================
+
+/// Yiddish verb classes following Weinreich's classification
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum VerbClass {
+    /// Weak verbs: regular past tense with -/ge- + -t (ge-makht)
+    Weak,
+    /// Strong verbs: vowel change in past tense (ge-zogt from zogn)
+    Strong,
+    /// Mixed verbs: vowel change + -t suffix
+    Mixed,
+    /// Hebrew/Aramaic origin: often have -n in present, different patterns
+    Hebrew,
+    /// Irregular verbs: don't fit standard patterns
+    Irregular,
+    /// Modal verbs: special conjugation (knen, megn, etc.)
+    Modal,
+    /// Auxiliary verbs: hobn (to have), zayn (to be)
+    Auxiliary,
+}
+
+impl Display for VerbClass {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::Weak => write!(f, "Weak (ge--t)"),
+            Self::Strong => write!(f, "Strong (vowel shift)"),
+            Self::Mixed => write!(f, "Mixed (vowel + -t)"),
+            Self::Hebrew => write!(f, "Hebrew-origin"),
+            Self::Irregular => write!(f, "Irregular"),
+            Self::Modal => write!(f, "Modal"),
+            Self::Auxiliary => write!(f, "Auxiliary"),
+        }
+    }
+}
+
+/// Verb conjugation person and number
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum VerbPerson {
+    FirstSingular,
+    SecondSingular,
+    ThirdSingularMasculine,
+    ThirdSingularFeminine,
+    FirstPlural,
+    SecondPlural,
+    ThirdPlural,
+    ImperativeSingular,
+    ImperativePlural,
+}
+
+impl Display for VerbPerson {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::FirstSingular => write!(f, "1sg"),
+            Self::SecondSingular => write!(f, "2sg"),
+            Self::ThirdSingularMasculine => write!(f, "3sg.m"),
+            Self::ThirdSingularFeminine => write!(f, "3sg.f"),
+            Self::FirstPlural => write!(f, "1pl"),
+            Self::SecondPlural => write!(f, "2pl"),
+            Self::ThirdPlural => write!(f, "3pl"),
+            Self::ImperativeSingular => write!(f, "imp.sg"),
+            Self::ImperativePlural => write!(f, "imp.pl"),
+        }
+    }
+}
+
+/// Pronoun forms for Yiddish verb conjugation
+impl VerbPerson {
+    /// Get the Yiddish pronoun for this person/number
+    pub fn pronoun(self) -> &'static str {
+        match self {
+            Self::FirstSingular => "איך (ikh)",
+            Self::SecondSingular => "דו (du)",
+            Self::ThirdSingularMasculine => "ער (er)",
+            Self::ThirdSingularFeminine => "זי (zi)",
+            Self::FirstPlural => "מיר (mir)",
+            Self::SecondPlural => "איר (ir)",
+            Self::ThirdPlural => "זיי (zey)",
+            Self::ImperativeSingular => "-",
+            Self::ImperativePlural => "-",
+        }
+    }
+}
+
+// ============================================================================
 // MORPHOLOGICAL FEATURE ENUMS
 // ============================================================================
 
